@@ -10,7 +10,8 @@ program main
     integer, parameter :: SCREEN_WIDTH  = 1920
     integer, parameter :: SCREEN_HEIGHT = 1080
     
-
+    integer :: mouseX, mouseY
+    
 
     
     integer, parameter :: CHAR_SIZE = 100
@@ -23,13 +24,13 @@ program main
     playerColor = LIGHTGRAY
     
 
-
+    
     
 
     call init_window(SCREEN_WIDTH, SCREEN_HEIGHT, 'Cruderfense' // c_null_char)
 
     
-    
+    call disable_cursor()
     
     
     char_x = SCREEN_WIDTH / 2 - CHAR_SIZE / 2
@@ -38,9 +39,11 @@ program main
 
     do while (.not. window_should_close())
         call handleInput
+        call mouseHandling
         call begin_drawing()
             call clear_background(bgColor)
             call draw_rectangle(char_x, char_y, CHAR_SIZE, CHAR_SIZE, playerColor)
+            call draw_circle(mouseX,mouseY,15.0,WHITE)
         call end_drawing()
     end do
 
@@ -73,4 +76,13 @@ program main
         char_y = max(0, min(char_y, SCREEN_HEIGHT - CHAR_SIZE))
 
     end subroutine
+
+    subroutine mouseHandling()
+
+        
+       mouseX = get_mouse_x()
+       mouseY = get_mouse_y()
+
+    end subroutine
+
 end program main
