@@ -1,0 +1,23 @@
+name = "Cruderfense"
+version = "0.1.0"
+license = "license"
+author = "ERDINC DASKIN"
+maintainer = "eruanio33@gmail.com"
+copyright = "Copyright 2025, ERDINC DASKIN"
+[build]
+auto-executables = true
+auto-tests = true
+auto-examples = true
+module-naming = false
+[install]
+library = false
+test = false
+
+[dependencies]
+fortran-raylib = { git = "https://github.com/interkosmos/fortran-raylib.git" }
+
+[fortran]
+implicit-typing = false
+implicit-external = false
+source-form = "free"
+
