@@ -14,10 +14,9 @@ library = false
 test = false
 
 [dependencies]
-fortran-raylib = { git = "https://github.com/interkosmos/fortran-raylib.git" }
+fortran-raylib = { path = "../fortran-raylib" }
 
 [fortran]
 implicit-typing = false
 implicit-external = false
 source-form = "free"
-
