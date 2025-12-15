@@ -5,7 +5,7 @@ program main
 
 
     type(color_type) :: bgColor, playerColor 
-
+    
 
     integer, parameter :: SCREEN_WIDTH  = 1920
     integer, parameter :: SCREEN_HEIGHT = 1080
@@ -21,6 +21,8 @@ program main
         real :: size
         type(color_type) :: charCol
     end type EnemyChar
+
+    type(EnemyChar), allocatable :: enemyArr(:)
     
     type :: playerChar
         character(len=30) :: name
@@ -34,16 +36,17 @@ program main
     integer, parameter :: CHAR_SIZE = 100
     integer :: char_x, char_y
     
+    
 
 
-
-    type(EnemyChar) :: Enemy1
+    type(EnemyChar) :: Enemy1, Enemy2
     type(playerChar) :: player1
 
     bgColor = color_from_hsv(210.0, 10.0, 97.0)
     playerColor = LIGHTGRAY
     
     
+    allocate(enemyArr(1))
 
     Enemy1%name = "Diddy"
     Enemy1%xPos = 20
@@ -52,6 +55,14 @@ program main
     Enemy1%maxHp = 10
     Enemy1%hp = 10
     Enemy1%charCol = color_from_hsv(150.1,10.2,97.0)
+
+    Enemy2%name = "Diddy2"
+    Enemy2%xPos = 700
+    Enemy2%yPos = 60
+    Enemy2%size = 60.0 
+    Enemy2%maxHp = 20
+    Enemy2%hp = 20
+    Enemy2%charCol = color_from_hsv(150.1,10.2,97.0)
     
     player1%name = "Adam_goon"
     player1%xPos = 20
@@ -72,6 +83,9 @@ program main
     player1%yPos= SCREEN_HEIGHT / 2 - CHAR_SIZE / 2
     call set_target_fps(60)
 
+    enemyArr = spawnEnemy(Enemy1, enemyArr)
+    enemyArr = spawnEnemy(Enemy2, enemyArr)
+
     do while (.not. window_should_close())
         call handleInput(player1)
         call mouseHandling
@@ -79,7 +93,11 @@ program main
             call clear_background(bgColor)
             call drawChar(player1)
             call draw_circle(mouseX,mouseY,15.0,WHITE)
-            call spawnEnemy(Enemy1)
+            
+            
+            
+            
+            call drawEnemies(enemyArr)
         call end_drawing()
     end do
 
@@ -115,17 +133,41 @@ program main
     end subroutine
 
     subroutine mouseHandling()
-
-        
        mouseX = get_mouse_x()
        mouseY = get_mouse_y()
-
     end subroutine
 
-    subroutine spawnEnemy(enemy)
-        type(EnemyChar) :: enemy 
+    function spawnEnemy(enemy, Arr) result(res)
+        type(EnemyChar), intent(in) :: enemy, Arr(:)
+        type(EnemyChar), allocatable :: res(:)
+        
+        integer :: oldSize
 
-        call draw_circle(enemy%xPos,enemy%yPos,enemy%size,enemy%charCol)
+        oldSize = size(Arr)
+        
+        allocate(res(oldSize + 1))
+        if (oldSize > 0) then
+            res(1:oldSize) = Arr
+        end if
+
+        res(oldSize + 1) = enemy
+        
+    end function
+
+    subroutine drawEnemies(Arr)
+
+        type(EnemyChar) ::  Arr(:)
+        
+        type(EnemyChar) :: enemy
+        integer :: i = 1
+
+        
+        do i=1,size(Arr)    
+            enemy = Arr(i)
+            
+            call draw_circle(enemy%xPos,enemy%yPos,enemy%size,enemy%charCol)
+            call draw_text(enemy%name// c_null_char, (enemy%xPos)-10,(enemy%yPos)-20,30,BLACK)
+        end do
         
     end subroutine
 
