@@ -18,6 +18,7 @@ program main
         character(len=30) :: name
         integer :: xPos, yPos
         integer :: maxHp, hp
+        integer :: speed
         real :: size
         type(color_type) :: charCol
     end type EnemyChar
@@ -55,6 +56,7 @@ program main
     Enemy1%maxHp = 10
     Enemy1%hp = 10
     Enemy1%charCol = color_from_hsv(150.1,10.2,97.0)
+    Enemy1%speed = 10
 
     Enemy2%name = "Diddy2"
     Enemy2%xPos = 700
@@ -63,6 +65,7 @@ program main
     Enemy2%maxHp = 20
     Enemy2%hp = 20
     Enemy2%charCol = color_from_hsv(150.1,10.2,97.0)
+    Enemy2%speed = 4
     
     player1%name = "Adam_goon"
     player1%xPos = 20
@@ -93,7 +96,7 @@ program main
             call clear_background(bgColor)
             call drawChar(player1)
             call draw_circle(mouseX,mouseY,15.0,WHITE)
-            
+            call moveEnemies(enemyArr, player1)
             
             
             
@@ -175,6 +178,37 @@ program main
         type(playerChar) :: player
         call draw_rectangle(player%xPos, player%yPos, player%size, player%size, player%charCol)
         call draw_text( player%name// c_null_char, (player%xPos)-10, (player%yPos)-20, 30, BLACK)
+    end subroutine
+
+    subroutine moveEnemies(Arr, playr)
+
+        type(EnemyChar) ::  Arr(:), enemy
+        type(playerChar) :: playr
+
+        integer :: i = 0
+
+        do i=1,size(Arr)    
+            enemy = Arr(i)
+            if (Arr(i)%xPos > playr%xPos) then 
+                Arr(i)%xPos = Arr(i)%xPos - Arr(i)%speed
+                
+            else 
+                Arr(i)%xPos = Arr(i)%xPos + Arr(i)%speed
+                
+            end if
+
+            if (Arr(i)%yPos > playr%yPos) then 
+                Arr(i)%yPos = Arr(i)%yPos - Arr(i)%speed
+                
+            else 
+                Arr(i)%yPos = Arr(i)%yPos + Arr(i)%speed
+                
+            end if
+            
+            
+        end do
+
+
     end subroutine
 
 end program main
