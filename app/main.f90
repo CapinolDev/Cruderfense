@@ -182,26 +182,27 @@ program main
 
     subroutine moveEnemies(Arr, playr)
 
-        type(EnemyChar) ::  Arr(:), enemy
+        type(EnemyChar), target ::  Arr(:)
+        type(EnemyChar), pointer :: enemy
         type(playerChar) :: playr
 
         integer :: i = 0
 
         do i=1,size(Arr)    
-            enemy = Arr(i)
-            if (Arr(i)%xPos > playr%xPos) then 
-                Arr(i)%xPos = Arr(i)%xPos - Arr(i)%speed
+            enemy => Arr(i)
+            if (enemy%xPos > playr%xPos) then 
+                enemy%xPos = enemy%xPos - enemy%speed
                 
             else 
-                Arr(i)%xPos = Arr(i)%xPos + Arr(i)%speed
+                enemy%xPos = enemy%xPos + enemy%speed
                 
             end if
 
-            if (Arr(i)%yPos > playr%yPos) then 
-                Arr(i)%yPos = Arr(i)%yPos - Arr(i)%speed
+            if (enemy%yPos > playr%yPos) then 
+                enemy%yPos = enemy%yPos - enemy%speed
                 
             else 
-                Arr(i)%yPos = Arr(i)%yPos + Arr(i)%speed
+                enemy%yPos = enemy%yPos + enemy%speed
                 
             end if
             
