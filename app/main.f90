@@ -11,7 +11,7 @@ program main
     integer, parameter :: SCREEN_HEIGHT = 1080
     
     integer :: mouseX, mouseY
-    
+    real :: invisTicks
 
 
     type :: EnemyChar 
@@ -56,7 +56,7 @@ program main
     Enemy1%maxHp = 10
     Enemy1%hp = 10
     Enemy1%charCol = color_from_hsv(150.1,10.2,97.0)
-    Enemy1%speed = 10
+    Enemy1%speed = 2
 
     Enemy2%name = "Diddy2"
     Enemy2%xPos = 700
@@ -70,7 +70,7 @@ program main
     player1%name = "Adam_goon"
     player1%xPos = 20
     player1%yPos = 30
-    player1%size = 70
+    player1%size = 50
     player1%maxHp = 10
     player1%hp = 10
     player1%charCol = color_from_hsv(152.1,10.2,97.0)
@@ -93,10 +93,13 @@ program main
         call handleInput(player1)
         call mouseHandling
         call begin_drawing()
+            invisTicks = invisTicks + 1
+            write(*,*) player1%hp
             call clear_background(bgColor)
             call drawChar(player1)
             call draw_circle(mouseX,mouseY,15.0,WHITE)
             call moveEnemies(enemyArr, player1)
+            call checkEnemyColl(enemyArr, player1)
             
             
             
@@ -176,7 +179,12 @@ program main
 
     subroutine drawChar(player)
         type(playerChar) :: player
-        call draw_rectangle(player%xPos, player%yPos, player%size, player%size, player%charCol)
+
+        real :: cR 
+
+        cR = player%size 
+        call draw_circle(player%xPos, player%yPos, cR, player%charCol)
+
         call draw_text( player%name// c_null_char, (player%xPos)-10, (player%yPos)-20, 30, BLACK)
     end subroutine
 
@@ -212,4 +220,46 @@ program main
 
     end subroutine
 
+
+    subroutine checkEnemyColl(Arr, playr)
+        type(EnemyChar), intent(in) :: Arr(:)
+        TYPE(playerChar), intent(inout) :: playr 
+
+        type(EnemyChar) :: enemy
+        integer :: i = 0
+
+        integer :: dx, dy, radsum, radsumsq
+
+        
+        do i = 1,size(Arr)
+            enemy = Arr(i)
+
+            dx = enemy%xPos - playr%xPos
+            dy = enemy%yPos - playr%yPos
+
+            radsum = enemy%size + playr%size
+            radsumsq = radsum * radsum 
+
+
+            if ((dx * dx)+(dy*dy) <= radsumsq) then 
+                call damagePlayer(invisTicks, playr, 1)
+            end if
+
+        end do
+
+    end subroutine
+
+    subroutine damagePlayer(iFrameTicks, playr, damage)
+        real, intent(inout) :: iFrameTicks 
+        type(playerChar), intent(inout) :: playr 
+        integer, intent(in) :: damage
+
+        if (iFrameTicks > 60) then 
+            
+            iFrameTicks = 0
+            playr%hp = playr%hp - damage
+        end if
+
+
+    end subroutine
 end program main
