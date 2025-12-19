@@ -12,9 +12,17 @@ program main
     integer, parameter :: SCREEN_WIDTH  = 1920
     integer, parameter :: SCREEN_HEIGHT = 1080
     
+    real :: logoTrans = 0.0, logoTime = 0.0
+
     integer :: mouseX, mouseY
     real :: invisTicks
+    type(texture2d_type) :: mainLogo
 
+    type :: Button
+        type(rectangle_type) :: rect
+        type(color_type) :: col
+        logical :: isPressed
+    end type Button
 
     type :: EnemyChar 
         character(len=30) :: name
@@ -36,21 +44,31 @@ program main
         integer :: moveSpeed = 10
     end type playerChar
 
+    
+
     integer, parameter :: CHAR_SIZE = 100
     integer :: char_x, char_y
     
-    
+    type(Button) :: startBtn
+
 
 
     type(EnemyChar) :: Enemy1, Enemy2
     type(playerChar) :: player1
 
+
     integer :: currentScreen = SCREEN_LOGO
+
+
+    startBtn%rect%x = 800
+    startBtn%rect%y = 450
+    startBtn%rect%width = 200
+    startBtn%rect%height = 60
 
     bgColor = color_from_hsv(210.0, 10.0, 97.0)
     playerColor = LIGHTGRAY
     
-    currentScreen = SCREEN_GAMEPLAY
+    
     
     allocate(enemyArr(0))
 
@@ -86,7 +104,9 @@ program main
     
     call disable_cursor()
     
-    
+
+    mainLogo = load_texture('src/assets/CapinolLogo.png' // c_null_char)
+
     player1%xPos = SCREEN_WIDTH / 2 - CHAR_SIZE / 2
     player1%yPos= SCREEN_HEIGHT / 2 - CHAR_SIZE / 2
     call set_target_fps(60)
@@ -100,20 +120,47 @@ program main
                 call handleInput(player1)
                 call mouseHandling
                 invisTicks = invisTicks + 1
+            case(SCREEN_TITLE)
+                call mouseHandling
+                if (UpdateButton(startBtn)) then
+                    currentScreen = SCREEN_GAMEPLAY  
+                    
+                end if
+
         end select
         call begin_drawing()
             select case(currentScreen)
+                case(SCREEN_LOGO)
+                    if (logoTrans < 1.0) then 
+                        logoTrans = logoTrans + 0.01
+                    else 
+                        logoTime = logoTime + 0.1
+                    end if
+                    
+                    if (logoTime > 5.0) then 
+                        currentScreen = SCREEN_TITLE
+                        
+                    end if
+                    call clear_background(bgColor)
+                    call draw_texture(mainLogo, 590, 140, fade(WHITE,logoTrans))
+                    call draw_text( "Capinol"// c_null_char, 760, 760, 80, fade(BLACK,logoTrans))
+                case(SCREEN_TITLE)
+                    call clear_background(bgColor)
+                    
+                    call draw_rectangle_rec(startBtn%rect, startBtn%col)
+                    call draw_text("START" // c_null_char, int(startBtn%rect%x) + 50, &
+                    int(startBtn%rect%y) + 15, 30, DARKGRAY)
+                    call draw_circle(mouseX,mouseY,15.0,WHITE)
+                    
                 case(SCREEN_GAMEPLAY) 
                     write(*,*) player1%hp
                     call clear_background(bgColor)
                     call drawChar(player1)
-                    call draw_circle(mouseX,mouseY,15.0,WHITE)
+                    
                     call moveEnemies(enemyArr, player1)
                     call checkEnemyColl(enemyArr, player1)
-            
-            
-            
-            call drawEnemies(enemyArr)
+                    call drawEnemies(enemyArr)
+                    call draw_circle(mouseX,mouseY,15.0,WHITE)
             end select
         call end_drawing()
     end do
@@ -270,4 +317,25 @@ program main
 
 
     end subroutine
+
+    function UpdateButton(btn) result(clicked)
+        type(Button), intent(inout) :: btn
+        logical :: clicked
+        type(vector2_type) :: mousePos
+        
+        clicked = .false.
+        mousePos = get_mouse_position()
+
+        
+        if (check_collision_point_rec(mousePos, btn%rect)) then
+            btn%col = GRAY 
+            
+            if (is_mouse_button_pressed(MOUSE_BUTTON_LEFT)) then
+                clicked = .true.
+                btn%col = BLACK 
+            end if
+        else
+            btn%col = LIGHTGRAY 
+        end if
+    end function
 end program main
