@@ -1,4 +1,6 @@
 program main
+    use :: collisions
+    use :: gameconstants
     use, intrinsic :: iso_c_binding, only: c_null_char
     use :: raylib
     implicit none (type, external)
@@ -43,11 +45,14 @@ program main
     type(EnemyChar) :: Enemy1, Enemy2
     type(playerChar) :: player1
 
+    integer :: currentScreen = SCREEN_LOGO
+
     bgColor = color_from_hsv(210.0, 10.0, 97.0)
     playerColor = LIGHTGRAY
     
+    currentScreen = SCREEN_GAMEPLAY
     
-    allocate(enemyArr(1))
+    allocate(enemyArr(0))
 
     Enemy1%name = "Diddy"
     Enemy1%xPos = 20
@@ -86,24 +91,30 @@ program main
     player1%yPos= SCREEN_HEIGHT / 2 - CHAR_SIZE / 2
     call set_target_fps(60)
 
-    enemyArr = spawnEnemy(Enemy1, enemyArr)
-    enemyArr = spawnEnemy(Enemy2, enemyArr)
-
+    call spawnEnemy(Enemy1, enemyArr)
+    call spawnEnemy(Enemy2, enemyArr)
+    
     do while (.not. window_should_close())
-        call handleInput(player1)
-        call mouseHandling
+        select case(currentScreen)
+            case(SCREEN_GAMEPLAY)    
+                call handleInput(player1)
+                call mouseHandling
+                invisTicks = invisTicks + 1
+        end select
         call begin_drawing()
-            invisTicks = invisTicks + 1
-            write(*,*) player1%hp
-            call clear_background(bgColor)
-            call drawChar(player1)
-            call draw_circle(mouseX,mouseY,15.0,WHITE)
-            call moveEnemies(enemyArr, player1)
-            call checkEnemyColl(enemyArr, player1)
+            select case(currentScreen)
+                case(SCREEN_GAMEPLAY) 
+                    write(*,*) player1%hp
+                    call clear_background(bgColor)
+                    call drawChar(player1)
+                    call draw_circle(mouseX,mouseY,15.0,WHITE)
+                    call moveEnemies(enemyArr, player1)
+                    call checkEnemyColl(enemyArr, player1)
             
             
             
             call drawEnemies(enemyArr)
+            end select
         call end_drawing()
     end do
 
@@ -143,22 +154,20 @@ program main
        mouseY = get_mouse_y()
     end subroutine
 
-    function spawnEnemy(enemy, Arr) result(res)
-        type(EnemyChar), intent(in) :: enemy, Arr(:)
-        type(EnemyChar), allocatable :: res(:)
-        
-        integer :: oldSize
+    subroutine spawnEnemy(newEnemy, Arr)
+        type(EnemyChar), intent(in) :: newEnemy
+        type(EnemyChar), allocatable, intent(inout) :: Arr(:)
+        type(EnemyChar), allocatable :: temp(:)
+        integer :: n
 
-        oldSize = size(Arr)
+        n = size(Arr)
+        allocate(temp(n + 1))
         
-        allocate(res(oldSize + 1))
-        if (oldSize > 0) then
-            res(1:oldSize) = Arr
-        end if
-
-        res(oldSize + 1) = enemy
+        if (n > 0) temp(1:n) = Arr
+        temp(n + 1) = newEnemy
         
-    end function
+        call move_alloc(from=temp, to=Arr)
+    end subroutine
 
     subroutine drawEnemies(Arr)
 
@@ -228,21 +237,20 @@ program main
         type(EnemyChar) :: enemy
         integer :: i = 0
 
+        logical :: resFunc
         integer :: dx, dy, radsum, radsumsq
 
-        
+        integer :: i1
+        resFunc = .false.
         do i = 1,size(Arr)
+            
             enemy = Arr(i)
-
-            dx = enemy%xPos - playr%xPos
-            dy = enemy%yPos - playr%yPos
-
-            radsum = enemy%size + playr%size
-            radsumsq = radsum * radsum 
-
-
-            if ((dx * dx)+(dy*dy) <= radsumsq) then 
+            i1 = enemy%size
+            resFunc = circToCircColl(enemy%xPos,enemy%yPos,playr%xPos,playr%yPos,i1,playr%size)
+            
+            if (resFunc .eqv. .true.) then
                 call damagePlayer(invisTicks, playr, 1)
+                
             end if
 
         end do
