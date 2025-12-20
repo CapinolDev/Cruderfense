@@ -17,6 +17,7 @@ program main
     integer :: mouseX, mouseY
     real :: invisTicks
     type(texture2d_type) :: mainLogo
+    logical :: isDead =.false.
 
     type :: Button
         type(rectangle_type) :: rect
@@ -44,12 +45,12 @@ program main
         integer :: moveSpeed = 10
     end type playerChar
 
-    
-
+    character(len=2) :: playerHpStr, playerMaxHpStr
+ 
     integer, parameter :: CHAR_SIZE = 100
     integer :: char_x, char_y
     
-    type(Button) :: startBtn
+    type(Button) :: startBtn, menuBtn
 
 
 
@@ -57,13 +58,19 @@ program main
     type(playerChar) :: player1
 
 
-    integer :: currentScreen = SCREEN_LOGO
+    integer :: currentScreen = SCREEN_TITLE
 
 
     startBtn%rect%x = 800
     startBtn%rect%y = 450
     startBtn%rect%width = 200
     startBtn%rect%height = 60
+
+    menuBtn%rect%x = 800
+    menuBtn%rect%y = 450
+    menuBtn%rect%width = 200
+    menuBtn%rect%height = 60
+
 
     bgColor = color_from_hsv(210.0, 10.0, 97.0)
     playerColor = LIGHTGRAY
@@ -119,13 +126,28 @@ program main
             case(SCREEN_GAMEPLAY)    
                 call handleInput(player1)
                 call mouseHandling
+                
                 invisTicks = invisTicks + 1
+                write(playerHpStr, '(I0)') player1%hp
+                write(playerMaxHpStr, '(I0)') player1%maxHp
+                if (player1%hp < 1) then 
+                    currentScreen = SCREEN_ENDING
+                    isDead = .true.
+                end if
             case(SCREEN_TITLE)
                 call mouseHandling
                 if (UpdateButton(startBtn)) then
                     currentScreen = SCREEN_GAMEPLAY  
-                    
                 end if
+            case(SCREEN_ENDING)
+                call mouseHandling
+                if (UpdateButton(menuBtn)) then
+                    currentScreen = SCREEN_TITLE
+                    if (isDead .eqv. .true.) then 
+                        isDead = .false.
+                        call resetGame
+                    end if
+                end if 
 
         end select
         call begin_drawing()
@@ -150,16 +172,25 @@ program main
                     call draw_rectangle_rec(startBtn%rect, startBtn%col)
                     call draw_text("START" // c_null_char, int(startBtn%rect%x) + 50, &
                     int(startBtn%rect%y) + 15, 30, DARKGRAY)
+                    call draw_text("Crudefense" // c_null_char, 500, 100, 140, BLACK)
                     call draw_circle(mouseX,mouseY,15.0,WHITE)
                     
                 case(SCREEN_GAMEPLAY) 
-                    write(*,*) player1%hp
+                    
                     call clear_background(bgColor)
                     call drawChar(player1)
                     
                     call moveEnemies(enemyArr, player1)
                     call checkEnemyColl(enemyArr, player1)
                     call drawEnemies(enemyArr)
+                    call draw_circle(mouseX,mouseY,15.0,WHITE)
+                    
+                    call draw_text(playerHpStr // c_null_char, 100, 200, 140, BLACK)
+                case(SCREEN_ENDING)
+                    call clear_background(bgColor)
+                    call draw_rectangle_rec(menuBtn%rect, menuBtn%col)
+                    call draw_text("Menu" // c_null_char, int(startBtn%rect%x) + 50, &
+                    int(startBtn%rect%y) + 15, 30, DARKGRAY)
                     call draw_circle(mouseX,mouseY,15.0,WHITE)
             end select
         call end_drawing()
@@ -169,6 +200,20 @@ program main
 
     contains
 
+    subroutine resetGame()
+        if (allocated(enemyArr)) deallocate(enemyArr)
+        allocate(enemyArr(0))
+
+        
+        player1%hp = player1%maxHp
+        player1%xPos = SCREEN_WIDTH / 2 - player1%size / 2
+        player1%yPos = SCREEN_HEIGHT / 2 - player1%size / 2
+        invisTicks = 61.0 
+
+        
+        call spawnEnemy(Enemy1, enemyArr)
+        call spawnEnemy(Enemy2, enemyArr)
+    end subroutine
     subroutine handleInput(player)
         type(playerChar) :: player
 
