@@ -12,6 +12,8 @@ program main
     integer, parameter :: SCREEN_WIDTH  = 1920
     integer, parameter :: SCREEN_HEIGHT = 1080
     
+    real :: crosshairX, crosshairY
+
     real :: logoTrans = 0.0, logoTime = 0.0
 
     integer :: mouseX, mouseY
@@ -24,6 +26,18 @@ program main
         type(color_type) :: col
         logical :: isPressed
     end type Button
+
+    type :: Projectile
+        real :: x, y
+        real :: speedX, speedY
+        real :: targetX, targetY
+        real :: size
+        logical :: active = .false.
+        integer :: damage
+    end type Projectile
+
+    type(Projectile), allocatable :: arrows(:)
+    integer, parameter :: maxArrows = 50
 
     type :: EnemyChar 
         character(len=30) :: name
@@ -43,6 +57,9 @@ program main
         integer :: size
         type(color_type) :: charCol
         integer :: moveSpeed = 10
+        logical :: isCharging = .false.
+        real :: chargeValue = 0.0      
+        real :: maxCharge = 1.5
     end type playerChar
 
     character(len=2) :: playerHpStr, playerMaxHpStr
@@ -105,9 +122,12 @@ program main
     player1%hp = 10
     player1%charCol = color_from_hsv(152.1,10.2,97.0)
     
+    call set_config_flags(FLAG_WINDOW_RESIZABLE)
 
     call init_window(SCREEN_WIDTH, SCREEN_HEIGHT, 'Cruderfense' // c_null_char)
 
+    crosshairX = SCREEN_WIDTH / 2.0
+    crosshairY = SCREEN_HEIGHT / 2.0
     
     call disable_cursor()
     
@@ -121,12 +141,15 @@ program main
     call spawnEnemy(Enemy1, enemyArr)
     call spawnEnemy(Enemy2, enemyArr)
     
+    allocate(arrows(maxArrows))
+
     do while (.not. window_should_close())
         select case(currentScreen)
             case(SCREEN_GAMEPLAY)    
                 call handleInput(player1)
-                call mouseHandling
-                
+                call mouseHandlingGame(player1)
+                call updateArrows()
+
                 invisTicks = invisTicks + 1
                 write(playerHpStr, '(I0)') player1%hp
                 write(playerMaxHpStr, '(I0)') player1%maxHp
@@ -136,12 +159,12 @@ program main
                 end if
             case(SCREEN_TITLE)
                 call mouseHandling
-                if (UpdateButton(startBtn)) then
+                if (UpdateButton(startBtn, mouseX, mouseY)) then
                     currentScreen = SCREEN_GAMEPLAY  
                 end if
             case(SCREEN_ENDING)
                 call mouseHandling
-                if (UpdateButton(menuBtn)) then
+                if (UpdateButton(menuBtn, mouseX, mouseY)) then
                     currentScreen = SCREEN_TITLE
                     if (isDead .eqv. .true.) then 
                         isDead = .false.
@@ -184,7 +207,20 @@ program main
                     call checkEnemyColl(enemyArr, player1)
                     call drawEnemies(enemyArr)
                     call draw_circle(mouseX,mouseY,15.0,WHITE)
+                    call drawArrows()
                     
+                    if (player1%isCharging) then
+                        
+                        call draw_circle_lines(mouseX, mouseY, 40.0, fade(GRAY, 0.5))
+                        
+                        
+                        
+                        call draw_circle_lines(mouseX, mouseY, 40.0 - (35.0 * player1%chargeValue), YELLOW)
+                        
+                        
+                        call draw_circle(mouseX, mouseY, 2.0, RED)
+                    end if
+
                     call draw_text(playerHpStr // c_null_char, 100, 200, 140, BLACK)
                 case(SCREEN_ENDING)
                     call clear_background(bgColor)
@@ -236,14 +272,75 @@ program main
             player%yPos = player%yPos + player%moveSpeed
         end if
 
+        if (is_mouse_button_down(MOUSE_BUTTON_LEFT)) then
+            player1%isCharging = .true.
+            
+            
+            player1%chargeValue = player1%chargeValue + (get_frame_time() / player1%maxCharge)
+            
+            
+            if (player1%chargeValue > 1.0) player1%chargeValue = 1.0
+        else
+            
+            if (player1%isCharging) then
+                 call fireArrow(player, mouseX, mouseY)
+                player1%isCharging = .false.
+                player1%chargeValue = 0.0
+            end if
+        end if
+
         player%xPos = max(0, min(player%xPos, SCREEN_WIDTH - player%size))
         player%yPos = max(0, min(player%yPos, SCREEN_HEIGHT - player%size))
 
     end subroutine
 
+
     subroutine mouseHandling()
-       mouseX = get_mouse_x()
-       mouseY = get_mouse_y()
+        type(vector2_type) :: delta
+        
+        
+        delta = get_mouse_delta()
+        
+        
+        crosshairX = crosshairX + delta%x
+        crosshairY = crosshairY + delta%y
+        
+        
+        crosshairX = max(0.0, min(crosshairX, real(SCREEN_WIDTH)))
+        crosshairY = max(0.0, min(crosshairY, real(SCREEN_HEIGHT)))
+        
+        
+        mouseX = int(crosshairX)
+        mouseY = int(crosshairY)
+    end subroutine
+
+    subroutine mouseHandlingGame(player)
+        type(playerChar), intent(in) :: player
+        type(vector2_type) :: delta
+        real :: dirX, dirY, length, maxReach
+        
+        delta = get_mouse_delta()
+        crosshairX = crosshairX + delta%x
+        crosshairY = crosshairY + delta%y
+        
+        
+        dirX = crosshairX - player%xPos
+        dirY = player%yPos - crosshairY 
+        dirX = crosshairX - player%xPos
+        dirY = crosshairY - player%yPos
+        
+        length = sqrt(dirX**2 + dirY**2)
+        if (length > 0) then
+            dirX = dirX / length
+            dirY = dirY / length
+        end if
+
+        
+        maxReach = 60.0 + (300.0 * player%chargeValue)
+        
+        
+        mouseX = int(player%xPos + (dirX * maxReach))
+        mouseY = int(player%yPos + (dirY * maxReach))
     end subroutine
 
     subroutine spawnEnemy(newEnemy, Arr)
@@ -363,18 +460,20 @@ program main
 
     end subroutine
 
-    function UpdateButton(btn) result(clicked)
+    function UpdateButton(btn, mX, mY) result(clicked)
         type(Button), intent(inout) :: btn
+        integer, intent(in) :: mX, mY
         logical :: clicked
         type(vector2_type) :: mousePos
         
-        clicked = .false.
-        mousePos = get_mouse_position()
+      clicked = .false.
+    
+        mousePos%x = real(mX)
+        mousePos%y = real(mY)
 
         
         if (check_collision_point_rec(mousePos, btn%rect)) then
             btn%col = GRAY 
-            
             if (is_mouse_button_pressed(MOUSE_BUTTON_LEFT)) then
                 clicked = .true.
                 btn%col = BLACK 
@@ -383,4 +482,72 @@ program main
             btn%col = LIGHTGRAY 
         end if
     end function
+
+    subroutine fireArrow(player, mX, mY)
+        type(playerChar), intent(in) :: player
+        integer, intent(in) :: mX, mY
+        real :: dirX, dirY, length, projSpeed
+        integer :: i
+
+        do i = 1, maxArrows
+            if (.not. arrows(i)%active) then
+                arrows(i)%active = .true.
+                arrows(i)%x = real(player%xPos)
+                arrows(i)%y = real(player%yPos)
+                
+                
+                arrows(i)%targetX = real(mX)
+                arrows(i)%targetY = real(mY)
+                
+                arrows(i)%size = 5.0
+                
+               
+                dirX = arrows(i)%targetX - arrows(i)%x
+                dirY = arrows(i)%targetY - arrows(i)%y
+                length = sqrt(dirX**2 + dirY**2)
+                
+               
+                projSpeed = 10.0 + (25.0 * player%chargeValue)
+                
+                if (length > 0) then
+                    arrows(i)%speedX = (dirX / length) * projSpeed
+                    arrows(i)%speedY = (dirY / length) * projSpeed
+                end if
+                exit
+            end if
+        end do
+    end subroutine
+
+subroutine updateArrows()
+        integer :: i
+        real :: distToTarget
+        do i = 1, maxArrows
+            if (arrows(i)%active) then
+                arrows(i)%x = arrows(i)%x + arrows(i)%speedX
+                arrows(i)%y = arrows(i)%y + arrows(i)%speedY
+                
+                
+                distToTarget = sqrt((arrows(i)%targetX - arrows(i)%x)**2 + &
+                                    (arrows(i)%targetY - arrows(i)%y)**2)
+                
+                
+                if (distToTarget < 15.0 .or. & 
+                    arrows(i)%x < 0 .or. arrows(i)%x > SCREEN_WIDTH .or. &
+                    arrows(i)%y < 0 .or. arrows(i)%y > SCREEN_HEIGHT) then
+                    
+                    arrows(i)%active = .false.
+                end if
+            end if
+        end do
+    end subroutine
+    
+    subroutine drawArrows()
+        integer :: i
+        do i = 1, maxArrows
+            if (arrows(i)%active) then
+                call draw_circle(int(arrows(i)%x), int(arrows(i)%y), arrows(i)%size, BLACK)
+            end if
+        end do
+    end subroutine
+
 end program main
